@@ -106,8 +106,11 @@
     gap: var(--s-2);
   }
   .sys-bar .left { display: flex; gap: var(--s-3); align-items: center; min-width: 0; }
-  .sys-bar .left .doc { color: var(--text-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sys-bar .right { display: flex; gap: var(--s-3); align-items: center; }
+  .sys-bar .left .doc { color: var(--text-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: none; }
+  .sys-bar .right { display: flex; gap: var(--s-3); align-items: center; white-space: nowrap; }
+  @media (min-width: 540px) {
+    .sys-bar .left .doc { display: inline; }
+  }
 
   .sys-nav { display: none; gap: var(--s-3); align-items: center; }
   .sys-nav a {
