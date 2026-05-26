@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Falco Labs — Engenharia de aquisição. Construímos o motor de aquisição que falta hoje. Operação como produto.">
+<meta name="theme-color" content="#020617">
+<title>FALCO LABS // Engenharia de Aquisição</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ===========================================
+     FALCO_SYSTEM // TOKENS
+     ============================================ */
+  :root {
+    --bg-absolute: #020617;
+    --surface-1: #0F172A;
+    --surface-2: #1E293B;
+
+    --gold: #C9A96E;
+    --gold-bronze: #A8732E;
+
+    --text-100: #E2E8F0;
+    --text-300: #94A3B8;
+    --text-500: #64748B;
+
+    --status-op: #22C55E;
+    --status-attn: #EAB308;
+    --status-critical: #EF4444;
+
+    --border: #1E293B;
+
+    --font-display: 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+    --s-1: 8px;
+    --s-2: 16px;
+    --s-3: 24px;
+    --s-4: 32px;
+    --s-6: 48px;
+    --s-8: 64px;
+    --s-12: 96px;
+    --s-16: 128px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-absolute);
+    color: var(--text-100);
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--gold); color: var(--bg-absolute); }
+
+  a { color: inherit; text-decoration: none; }
+
+  *:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+  }
+
+  img { max-width: 100%; display: block; }
+
+  /* SKIP LINK */
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 8px;
+    background: var(--gold);
+    color: var(--bg-absolute);
+    padding: 12px 16px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    z-index: 200;
+  }
+  .skip:focus { left: 8px; }
+
+  /* ===========================================
+     SYSTEM BAR
+     ============================================ */
+  .sys-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(2, 6, 23, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-300);
+    padding: 12px var(--s-3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--s-2);
+  }
+  .sys-bar .left { display: flex; gap: var(--s-3); align-items: center; min-width: 0; }
+  .sys-bar .left .doc { color: var(--text-500); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sys-bar .right { display: flex; gap: var(--s-3); align-items: center; }
+
+  .sys-nav { display: none; gap: var(--s-3); align-items: center; }
+  .sys-nav a {
+    color: var(--text-300);
+    transition: color 0.15s ease;
+  }
+  .sys-nav a:hover, .sys-nav a:focus-visible { color: var(--gold); }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--status-op);
+    border-radius: 50%;
+    margin-right: 6px;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+    animation: pulse 2s infinite;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  @media (min-width: 768px) {
+    .sys-bar { padding: 12px var(--s-6); }
+    .sys-nav { display: flex; }
+  }
+
+  /* ===========================================
+     CONTAINER
+     ============================================ */
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 var(--s-3);
+  }
+  @media (min-width: 768px) {
+    .wrap { padding: 0 var(--s-6); }
+  }
+
+  /* ===========================================
+     LABELS TÉCNICOS
+     ============================================ */
+  .label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gold);
+    display: inline-block;
+    margin-bottom: var(--s-2);
+  }
+  .label-muted {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .micro {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .gold { color: var(--gold); }
+  .muted { color: var(--text-300); }
+
+  /* ===========================================
+     TIPOGRAFIA
+     ============================================ */
+  h1, .h1 {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(40px, 7vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    color: var(--text-100);
+    text-transform: uppercase;
+  }
+  h2, .h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--text-100);
+    text-transform: uppercase;
+  }
+  h3, .h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(22px, 2.5vw, 36px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--text-100);
+  }
+  h4, .h4 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 20px;
+    line-height: 1.3;
+    color: var(--text-100);
+  }
+  @media (min-width: 768px) {
+    h4, .h4 { font-size: 22px; }
+  }
+  .body { font-size: 16px; line-height: 1.65; color: var(--text-100); }
+  @media (min-width: 768px) {
+    .body { font-size: 17px; }
+  }
+  .caption {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-300);
+  }
+
+  /* ===========================================
+     SECTION HEADER
+     ============================================ */
+  section.chapter {
+    border-top: 1px solid var(--border);
+    padding-top: var(--s-8);
+    margin-top: var(--s-8);
+  }
+  @media (min-width: 768px) {
+    section.chapter {
+      padding-top: var(--s-12);
+      margin-top: var(--s-12);
+    }
+  }
+  .chapter-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--s-6);
+    flex-wrap: wrap;
+    gap: var(--s-2);
+  }
+
+  /* ===========================================
+     JANELA DE SISTEMA
+     ============================================ */
+  .window {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 0;
+  }
+  .window.gold-edge { border-color: var(--gold); }
+  .window-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px var(--s-2);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-300);
+    gap: var(--s-2);
+  }
+  @media (min-width: 768px) {
+    .window-head { font-size: 12px; }
+  }
+  .window-dots { display: flex; gap: 6px; flex-shrink: 0; }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--surface-2);
+  }
+  .dot.r { background: var(--status-critical); opacity: 0.7; }
+  .dot.y { background: var(--status-attn); opacity: 0.7; }
+  .dot.g { background: var(--status-op); opacity: 0.9; }
+  .window-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .window-body { padding: var(--s-3); }
+
+  /* ===========================================
+     GRID HELPER
+     ============================================ */
+  .grid { display: grid; gap: var(--s-2); }
+  .g-2 { grid-template-columns: 1fr; }
+  .g-3 { grid-template-columns: 1fr; }
+  .g-4 { grid-template-columns: 1fr; }
+  @media (min-width: 768px) {
+    .g-2 { grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
+    .g-3 { grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
+    .g-4 { grid-template-columns: repeat(2, 1fr); gap: var(--s-3); }
+  }
+  @media (min-width: 1024px) {
+    .g-4 { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  /* ===========================================
+     BUTTONS — touch-target min 48px
+     ============================================ */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 15px;
+    padding: 16px 24px;
+    min-height: 48px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    background: transparent;
+    color: var(--text-100);
+    line-height: 1.2;
+  }
+  .btn-primary {
+    background: var(--gold);
+    color: var(--bg-absolute);
+    border-color: var(--gold);
+  }
+  .btn-primary:hover, .btn-primary:focus-visible {
+    background: var(--gold-bronze);
+    border-color: var(--gold-bronze);
+    transform: translateY(-1px);
+    box-shadow: 0 0 24px rgba(201, 169, 110, 0.25);
+  }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-100);
+    border-color: var(--text-300);
+  }
+  .btn-secondary:hover, .btn-secondary:focus-visible {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-300);
+    border-color: transparent;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .btn-ghost:hover, .btn-ghost:focus-visible { color: var(--gold); }
+  .btn .arr {
+    font-family: var(--font-mono);
+    transition: transform 0.15s ease;
+    display: inline-block;
+  }
+  .btn:hover .arr, .btn:focus-visible .arr { transform: translateX(4px); }
+  .btn-block { width: 100%; }
+  .btn-lg { padding: 18px 28px; font-size: 16px; min-height: 56px; }
+  @media (min-width: 768px) {
+    .btn-lg { padding: 20px 36px; font-size: 17px; }
+  }
+
+  /* ===========================================
+     INPUT
+     ============================================ */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: var(--s-2);
+  }
+  .field label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-300);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .input, .select, .textarea {
+    background: var(--bg-absolute);
+    border: 1px solid var(--border);
+    color: var(--text-100);
+    font-family: var(--font-body);
+    font-size: 16px;
+    padding: 14px 16px;
+    min-height: 48px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .select {
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+    padding-right: 40px;
+  }
+  .input:hover, .select:hover, .textarea:hover { border-color: var(--text-500); }
+  .input:focus, .select:focus, .textarea:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 1px var(--gold);
+  }
+  .input::placeholder { color: var(--text-500); }
+  .textarea { resize: vertical; min-height: 100px; }
+
+  /* ===========================================
+     CARD
+     ============================================ */
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    padding: var(--s-3);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .card:hover { border-color: var(--text-500); }
+  .card.gold-edge { border-color: var(--gold); }
+  .card-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--s-2);
+  }
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: var(--s-1);
+  }
+  @media (min-width: 768px) {
+    .card-title { font-size: 22px; }
+  }
+  .card-text {
+    color: var(--text-300);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  /* ===========================================
+     BADGE
+     ============================================ */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    color: var(--text-300);
+  }
+  .badge.gold {
+    color: var(--gold);
+    border-color: var(--gold);
+    background: rgba(201, 169, 110, 0.08);
+  }
+  .badge.op {
+    color: var(--status-op);
+    border-color: rgba(34, 197, 94, 0.4);
+    background: rgba(34, 197, 94, 0.08);
+  }
+  .badge .check { font-weight: 700; }
+
+  /* ===========================================
+     HERO
+     ============================================ */
+  .hero {
+    padding: var(--s-6) 0 var(--s-8);
+    position: relative;
+  }
+  @media (min-width: 768px) {
+    .hero { padding: var(--s-12) 0; }
+  }
+  .hero-inner {
+    position: relative;
+    padding: var(--s-6) var(--s-3);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  @media (min-width: 768px) {
+    .hero-inner { padding: var(--s-8) var(--s-6); }
+  }
+  .hero-inner .corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--gold);
+  }
+  .hero-inner .corner.tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+  .hero-inner .corner.tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+  .hero-inner .corner.bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+  .hero-inner .corner.br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+  .hero h1 {
+    margin-top: var(--s-3);
+    max-width: 14ch;
+  }
+  .hero .sub-line {
+    margin-top: var(--s-2);
+    color: var(--text-300);
+    font-weight: 500;
+    font-family: var(--font-display);
+    font-size: clamp(20px, 3vw, 32px);
+    line-height: 1.15;
+  }
+  .hero .lede {
+    margin-top: var(--s-3);
+    color: var(--text-300);
+    font-size: 16px;
+    max-width: 56ch;
+    line-height: 1.6;
+  }
+  @media (min-width: 768px) {
+    .hero .lede { font-size: 18px; line-height: 1.5; }
+  }
+  .hero .cta-row {
+    margin-top: var(--s-4);
+    display: flex;
+    gap: var(--s-2);
+    flex-wrap: wrap;
+  }
+  .hero .cta-row .btn { flex: 1 1 auto; min-width: 240px; }
+  @media (min-width: 768px) {
+    .hero .cta-row .btn { flex: 0 1 auto; }
+  }
+  .hero .metrics {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--s-3);
+    margin-top: var(--s-6);
+    padding-top: var(--s-3);
+    border-top: 1px solid var(--border);
+  }
+  @media (min-width: 600px) {
+    .hero .metrics { grid-template-columns: repeat(3, 1fr); gap: var(--s-4); }
+  }
+  .metric .v {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 4vw, 36px);
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .metric .k {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-500);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+  }
+
+  /* ===========================================
+     PROBLEMA vs SOLUÇÃO
+     ============================================ */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+  }
+  @media (min-width: 768px) {
+    .compare { grid-template-columns: 1fr 1fr; }
+  }
+  .compare-col { padding: var(--s-4) var(--s-3); }
+  @media (min-width: 768px) {
+    .compare-col { padding: var(--s-4); }
+    .compare-col + .compare-col { border-left: 1px solid var(--border); }
+  }
+  .compare-col + .compare-col {
+    border-top: 1px solid var(--border);
+  }
+  @media (min-width: 768px) {
+    .compare-col + .compare-col { border-top: none; }
+  }
+  .compare-col.solution { background: linear-gradient(180deg, transparent, rgba(201, 169, 110, 0.04)); }
+  .compare-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: var(--s-3);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .compare-head.no { color: var(--status-critical); }
+  .compare-head.ok { color: var(--gold); }
+  .compare-list { list-style: none; padding: 0; }
+  .compare-list li {
+    padding: 12px 0;
+    color: var(--text-300);
+    font-size: 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    line-height: 1.5;
+  }
+  .compare-list li:last-child { border-bottom: none; }
+  .compare-list .mark {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+  .compare-head.no .mark, .compare-list.no .mark { color: var(--status-critical); }
+  .compare-head.ok .mark, .compare-list.ok .mark { color: var(--gold); }
+
+  /* ===========================================
+     PROCESSO (step cards)
+     ============================================ */
+  .step {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    padding: var(--s-3);
+    position: relative;
+  }
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    margin-bottom: var(--s-2);
+  }
+  .step-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.2;
+    margin-bottom: var(--s-2);
+    color: var(--text-100);
+  }
+  .step-text {
+    color: var(--text-300);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .step-meta {
+    margin-top: var(--s-3);
+    padding-top: var(--s-2);
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-500);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ===========================================
+     FORM SECTION
+     ============================================ */
+  .form-section {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--s-4);
+  }
+  @media (min-width: 900px) {
+    .form-section { grid-template-columns: 1fr 1fr; gap: var(--s-6); align-items: start; }
+  }
+
+  /* ===========================================
+     CTA FINAL
+     ============================================ */
+  .cta-final {
+    margin-top: var(--s-12);
+    padding: var(--s-8) var(--s-3);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    position: relative;
+    background: linear-gradient(180deg, var(--bg-absolute) 0%, var(--surface-1) 100%);
+  }
+  @media (min-width: 768px) {
+    .cta-final { padding: var(--s-12) var(--s-6); margin-top: var(--s-16); }
+  }
+  .cta-final h2 { max-width: 18ch; margin: 0 auto var(--s-3); }
+  .cta-final .sub { color: var(--text-300); max-width: 55ch; margin: 0 auto var(--s-4); }
+
+  /* ===========================================
+     FOOTER
+     ============================================ */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: var(--s-4) var(--s-3);
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-500);
+    line-height: 1.8;
+  }
+  @media (min-width: 768px) {
+    .footer { padding: var(--s-4) var(--s-6); font-size: 12px; }
+  }
+  .footer-row {
+    display: flex;
+    justify-content: center;
+    gap: var(--s-3);
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  /* ===========================================
+     WHATSAPP FLUTUANTE
+     ============================================ */
+  .wa-float {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 90;
+    background: var(--gold);
+    color: var(--bg-absolute);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--gold);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .wa-float:hover, .wa-float:focus-visible {
+    transform: scale(1.05);
+    box-shadow: 0 8px 32px rgba(201, 169, 110, 0.5);
+  }
+  .wa-float svg { width: 28px; height: 28px; }
+  @media (min-width: 768px) {
+    .wa-float { bottom: 32px; right: 32px; width: 64px; height: 64px; }
+    .wa-float svg { width: 32px; height: 32px; }
+  }
+
+  /* ===========================================
+     UTILS
+     ============================================ */
+  .mt-1 { margin-top: var(--s-1); }
+  .mt-2 { margin-top: var(--s-2); }
+  .mt-3 { margin-top: var(--s-3); }
+  .mt-4 { margin-top: var(--s-4); }
+  .mt-6 { margin-top: var(--s-6); }
+  .mt-8 { margin-top: var(--s-8); }
+  .mb-2 { margin-bottom: var(--s-2); }
+  .mb-3 { margin-bottom: var(--s-3); }
+  .mb-4 { margin-bottom: var(--s-4); }
+  .mb-6 { margin-bottom: var(--s-6); }
+
+  /* ===========================================
+     REVEAL ANIMATION
+     ============================================ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    .reveal { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip">Pular para o conteúdo</a>
+
+<!-- =========================================
+     SYSTEM BAR / NAV
+     ========================================== -->
+<header class="sys-bar" role="banner">
+  <div class="left">
+    <span aria-label="Falco System versão 2.0">[FALCO_SYSTEM v2.0]</span>
+    <span class="doc">// engenharia.de.aquisicao</span>
+  </div>
+  <nav class="sys-nav" aria-label="Navegação principal">
+    <a href="#como-funciona">[ como funciona ]</a>
+    <a href="#processo">[ processo ]</a>
+    <a href="#prova">[ casos ]</a>
+    <a href="#agendar" class="gold">[ agendar → ]</a>
+  </nav>
+  <div class="right">
+    <span><span class="status-dot" aria-hidden="true"></span>STATUS: OPERANDO</span>
+  </div>
+</header>
+
+<main id="main">
+
+  <div class="wrap">
+
+    <!-- =========================================
+         HERO
+         ========================================== -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <span class="corner tl" aria-hidden="true"></span>
+        <span class="corner tr" aria-hidden="true"></span>
+        <span class="corner bl" aria-hidden="true"></span>
+        <span class="corner br" aria-hidden="true"></span>
+
+        <div class="micro gold reveal">[FALCO_SYSTEM v2.0] // engenharia.de.aquisicao</div>
+
+        <h1 id="hero-title" class="reveal">SUA AQUISIÇÃO NÃO PRECISA DE MAIS<br><span class="gold">ESTRATÉGIA.</span></h1>
+        <p class="sub-line reveal">Precisa de infraestrutura.</p>
+
+        <p class="lede reveal">Construímos o motor de aquisição que falta hoje. Operação como produto — uma estrutura, um responsável, uma curva de receita. Sem opinião de agência.</p>
+
+        <div class="cta-row reveal">
+          <a href="#agendar" class="btn btn-primary btn-lg">Agendar diagnóstico de estrutura <span class="arr" aria-hidden="true">→</span></a>
+          <a href="#como-funciona" class="btn btn-secondary btn-lg">Ver como funciona</a>
+        </div>
+
+        <p class="micro mt-3 reveal">// 45 MIN · ONLINE · GRATUITO · SEM PITCH</p>
+
+        <div class="metrics reveal" role="list">
+          <div class="metric" role="listitem">
+            <div class="v">R$ 482k</div>
+            <div class="k">MRR MÉDIO · CLIENTES ATIVOS</div>
+          </div>
+          <div class="metric" role="listitem">
+            <div class="v">8.4×</div>
+            <div class="k">RETORNO MÉDIO · 12 MESES</div>
+          </div>
+          <div class="metric" role="listitem">
+            <div class="v">+24%</div>
+            <div class="k">CAC OTIMIZADO · 90 DIAS</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================
+         COMO FUNCIONA — Problema vs Solução
+         ========================================== -->
+    <section class="chapter" id="como-funciona" aria-labelledby="como-title">
+      <div class="chapter-head">
+        <div>
+          <div class="label">CAPÍTULO 01</div>
+          <h2 id="como-title">A DIFERENÇA<br>É ESTRUTURAL.</h2>
+        </div>
+        <span class="label-muted">// agência vs engenharia</span>
+      </div>
+
+      <p class="body muted mb-6" style="max-width: 60ch;">A diferenciação não é cosmética. É estrutural. Cada decisão visual existe para dizer "esta empresa é diferente das que você já contratou".</p>
+
+      <div class="compare">
+        <div class="compare-col">
+          <div class="compare-head no"><span class="mark" aria-hidden="true">✕</span> AGÊNCIA TRADICIONAL</div>
+          <ul class="compare-list no">
+            <li><span class="mark" aria-hidden="true">→</span> Estratégia em PDF · ninguém executa</li>
+            <li><span class="mark" aria-hidden="true">→</span> Mockup pronto de iPhone do Freepik</li>
+            <li><span class="mark" aria-hidden="true">→</span> "Vamos juntos transformar seu negócio"</li>
+            <li><span class="mark" aria-hidden="true">→</span> Gradiente azul-roxo de startup genérica</li>
+            <li><span class="mark" aria-hidden="true">→</span> Stock photos de pessoas sorrindo com notebook</li>
+            <li><span class="mark" aria-hidden="true">→</span> Engrenagens · alvos com flecha · foguetes</li>
+          </ul>
+        </div>
+        <div class="compare-col solution">
+          <div class="compare-head ok"><span class="mark" aria-hidden="true">●</span> FALCO LABS</div>
+          <ul class="compare-list ok">
+            <li><span class="mark" aria-hidden="true">→</span> Screenshots reais de PostHog, Stripe, n8n, dashboards próprios</li>
+            <li><span class="mark" aria-hidden="true">→</span> Diagramas técnicos com nós e setas retas</li>
+            <li><span class="mark" aria-hidden="true">→</span> Janelas-sistema com 3 círculos e label técnico</li>
+            <li><span class="mark" aria-hidden="true">→</span> Selos dourados em pontos de decisão</li>
+            <li><span class="mark" aria-hidden="true">→</span> Métricas reais com data e variação</li>
+            <li><span class="mark" aria-hidden="true">→</span> Microcopy técnico em mono entre colchetes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================
+         DIAGNÓSTICO — explicação da oferta
+         ========================================== -->
+    <section class="chapter" id="diagnostico" aria-labelledby="diag-title">
+      <div class="chapter-head">
+        <div>
+          <div class="label">CAPÍTULO 02</div>
+          <h2 id="diag-title">DIAGNÓSTICO<br>DE ESTRUTURA.</h2>
+        </div>
+        <span class="label-muted">// ponto de entrada</span>
+      </div>
+
+      <div class="card gold-edge reveal">
+        <div class="card-label">DEMO.HIERARQUIA</div>
+        <h3 style="font-size: clamp(28px, 3.5vw, 48px); line-height: 0.95; text-transform: uppercase; letter-spacing: -0.02em; font-weight: 900;">DIAGNÓSTICO DE ESTRUTURA.</h3>
+        <h4 class="mt-3" style="color: var(--text-300); font-weight: 500;">Mapeamos o motor de aquisição da sua operação em 45 minutos.</h4>
+        <p class="body mt-3 muted" style="max-width: 55ch;">Sessão técnica gratuita conduzida por um engenheiro de aquisição. Você sai com um diagnóstico claro de onde está o gargalo e qual é o próximo passo de infraestrutura.</p>
+        <p class="micro mt-3">// 45 MIN · ONLINE · SEM PITCH</p>
+
+        <div style="display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-4);">
+          <span class="badge gold"><span class="check" aria-hidden="true">✓</span> CONVERSÃO PRIMEIRO</span>
+          <span class="badge op"><span class="check" aria-hidden="true">●</span> WCAG AA</span>
+          <span class="badge">[ SISTEMA 8PX ]</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================
+         PROCESSO — 4 etapas
+         ========================================== -->
+    <section class="chapter" id="processo" aria-labelledby="proc-title">
+      <div class="chapter-head">
+        <div>
+          <div class="label">CAPÍTULO 03</div>
+          <h2 id="proc-title">PROCESSO<br>EM 4 ETAPAS.</h2>
+        </div>
+        <span class="label-muted">// operação como produto</span>
+      </div>
+
+      <p class="body muted mb-6" style="max-width: 60ch;">Cada componente serve o fluxo: <span class="gold">visitante → diagnóstico</span>. Estilo visual herdado de software premium em modo escuro com tempero de janela brutalista.</p>
+
+      <div class="grid g-4">
+        <article class="step reveal">
+          <div class="step-num">[ 01. ]</div>
+          <h3 class="step-title">Diagnóstico estrutural</h3>
+          <p class="step-text">Mapa do funil atual, gargalos identificados, próximo passo claro.</p>
+          <div class="step-meta">// 45 MIN · ONLINE</div>
+        </article>
+        <article class="step reveal">
+          <div class="step-num">[ 02. ]</div>
+          <h3 class="step-title">Plano de execução</h3>
+          <p class="step-text">A receita exata para construir o motor de aquisição que falta hoje.</p>
+          <div class="step-meta">// PROJETO TÉCNICO</div>
+        </article>
+        <article class="step reveal">
+          <div class="step-num">[ 03. ]</div>
+          <h3 class="step-title">Construção do motor</h3>
+          <p class="step-text">Operação como produto — uma estrutura, um responsável, uma curva de receita.</p>
+          <div class="step-meta">// EM PRODUÇÃO</div>
+        </article>
+        <article class="step gold-edge reveal" style="border-color: var(--gold);">
+          <div class="step-num">[ 04. ]</div>
+          <h3 class="step-title">Escala mensurável</h3>
+          <p class="step-text">Operação como produto — uma estrutura, um responsável, uma curva de receita.</p>
+          <div class="step-meta gold" style="color: var(--gold);">// VALIDADO ✓</div>
+        </article>
+      </div>
+    </section>
+
+    <!-- =========================================
+         PROVA — métricas e cases
+         ========================================== -->
+    <section class="chapter" id="prova" aria-labelledby="prova-title">
+      <div class="chapter-head">
+        <div>
+          <div class="label">CAPÍTULO 04</div>
+          <h2 id="prova-title">PROVA<br>TÉCNICA.</h2>
+        </div>
+        <span class="label-muted">// números reais · clientes ativos</span>
+      </div>
+
+      <div class="grid g-3">
+        <article class="card reveal">
+          <div class="card-label">CASE · MRR</div>
+          <div style="font-family: var(--font-display); font-size: clamp(36px, 5vw, 48px); font-weight: 900; color: var(--gold); line-height: 1; letter-spacing: -0.02em;">+R$ 482k</div>
+          <p class="micro mt-2">MRR · CLIENTE · 8 MESES</p>
+          <p class="card-text mt-3">Construímos o motor de aquisição que falta hoje. Operação como produto.</p>
+        </article>
+        <article class="card reveal">
+          <div class="card-label">CASE · RETORNO</div>
+          <div style="font-family: var(--font-display); font-size: clamp(36px, 5vw, 48px); font-weight: 900; color: var(--gold); line-height: 1; letter-spacing: -0.02em;">8.4×</div>
+          <p class="micro mt-2">RETORNO MÉDIO · 12 MESES</p>
+          <p class="card-text mt-3">Uma estrutura, um responsável, uma curva de receita. Sem opinião de agência.</p>
+        </article>
+        <article class="card gold-edge reveal">
+          <div class="card-label gold">CASE · CAC</div>
+          <div style="font-family: var(--font-display); font-size: clamp(36px, 5vw, 48px); font-weight: 900; color: var(--gold); line-height: 1; letter-spacing: -0.02em;">+24%</div>
+          <p class="micro mt-2">CAC OTIMIZADO · 90 DIAS</p>
+          <p class="card-text mt-3">A receita exata para construir o motor de aquisição que falta hoje.</p>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: var(--s-3);">
+            <span class="badge gold">VALIDADO ✓</span>
+            <span class="badge gold">CASE FALCO</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- WINDOW DE STATUS -->
+      <div class="window mt-6 reveal">
+        <div class="window-head">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="window-dots" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+            <span>operacao.falco // status</span>
+          </div>
+          <div class="window-status"><span class="status-dot" aria-hidden="true"></span>OPERANDO</div>
+        </div>
+        <div class="window-body">
+          <div class="grid g-3">
+            <div>
+              <p class="micro gold">// INFRAESTRUTURA</p>
+              <p class="card-text mt-2">Sessão técnica gratuita conduzida por um engenheiro de aquisição.</p>
+            </div>
+            <div>
+              <p class="micro gold">// ENGENHARIA</p>
+              <p class="card-text mt-2">Você sai com um diagnóstico claro de onde está o gargalo.</p>
+            </div>
+            <div>
+              <p class="micro gold">// EXECUÇÃO</p>
+              <p class="card-text mt-2">Qual é o próximo passo de infraestrutura.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================
+         FORMULÁRIO DE AGENDAMENTO
+         ========================================== -->
+    <section class="chapter" id="agendar" aria-labelledby="agendar-title">
+      <div class="chapter-head">
+        <div>
+          <div class="label">CAPÍTULO 05 · FOCO</div>
+          <h2 id="agendar-title">AGENDAR<br>DIAGNÓSTICO.</h2>
+        </div>
+        <span class="label-muted">// formulário · 4 campos</span>
+      </div>
+
+      <p class="body muted mb-6" style="max-width: 60ch;">A única seção que importa: o hero. Um único objetivo, um único CTA primário, prova técnica embaixo. Tudo o que vem depois reforça este momento — todos os outros CTAs do site só repetem este botão.</p>
+
+      <div class="form-section">
+        <div class="window gold-edge reveal">
+          <div class="window-head">
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <div class="window-dots" aria-hidden="true"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+              <span>diagnostico.form // agendamento</span>
+            </div>
+            <div class="window-status"><span class="status-dot" aria-hidden="true"></span>OPERANDO</div>
+          </div>
+          <div class="window-body">
+            <form id="diagnostico-form" novalidate aria-label="Formulário de agendamento do diagnóstico de estrutura">
+              <div class="field">
+                <label for="nome">NOME COMPLETO</label>
+                <input id="nome" name="nome" type="text" class="input" placeholder="Como você se chama" required autocomplete="name" aria-required="true">
+              </div>
+              <div class="field">
+                <label for="empresa">EMPRESA</label>
+                <input id="empresa" name="empresa" type="text" class="input" placeholder="Razão social ou nome fantasia" required autocomplete="organization" aria-required="true">
+              </div>
+              <div class="field">
+                <label for="faturamento">FATURAMENTO MENSAL</label>
+                <select id="faturamento" name="faturamento" class="select" required aria-required="true">
+                  <option value="">Selecione a faixa atual</option>
+                  <option>Até R$ 50k/mês</option>
+                  <option>R$ 50k – R$ 200k/mês</option>
+                  <option>R$ 200k – R$ 1M/mês</option>
+                  <option>Acima de R$ 1M/mês</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="whatsapp">WHATSAPP</label>
+                <input id="whatsapp" name="whatsapp" type="tel" class="input" placeholder="(11) 90000-0000" required autocomplete="tel" inputmode="tel" aria-required="true">
+              </div>
+              <button type="submit" class="btn btn-primary btn-block btn-lg mt-2">Agendar diagnóstico de estrutura <span class="arr" aria-hidden="true">→</span></button>
+              <p class="micro muted mt-2" style="text-align: center;">// 45 MIN · ONLINE · GRATUITO · SEM PITCH</p>
+              <p id="form-status" class="micro mt-2" style="text-align: center; min-height: 18px;" role="status" aria-live="polite"></p>
+            </form>
+          </div>
+        </div>
+
+        <div>
+          <div class="card mb-2 reveal">
+            <div class="card-label">ANATOMIA · DECISÕES DE CONVERSÃO</div>
+            <ul class="compare-list ok" style="padding: 0;">
+              <li><span class="mark" aria-hidden="true">01.</span> <span><strong style="color: var(--text-100);">Label técnico topo</strong> · assina o DNA antes do título</span></li>
+              <li><span class="mark" aria-hidden="true">02.</span> <span><strong style="color: var(--text-100);">H1 com quebra estratégica</strong> · palavra-chave em dourado</span></li>
+              <li><span class="mark" aria-hidden="true">03.</span> <span><strong style="color: var(--text-100);">Subhead em case normal</strong> · contraponto ao H1 brutalista</span></li>
+              <li><span class="mark" aria-hidden="true">04.</span> <span><strong style="color: var(--text-100);">Parágrafo direto</strong> · 2 linhas · fala de operação, não jornada</span></li>
+              <li><span class="mark" aria-hidden="true">05.</span> <span><strong style="color: var(--text-100);">CTA primário dourado sólido</strong> · acima da dobra · texto-ação</span></li>
+              <li><span class="mark" aria-hidden="true">06.</span> <span><strong style="color: var(--text-100);">Microcopy de objeção</strong> · "gratuito · sem pitch" tira fricção</span></li>
+              <li><span class="mark" aria-hidden="true">07.</span> <span><strong style="color: var(--text-100);">Métricas em janela</strong> · prova técnica imediata</span></li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <div class="card-label">REGRA DE OURO · CONVERSÃO</div>
+            <p class="card-text">Formulário do diagnóstico <span style="color: var(--gold); font-weight: 500;">nunca passa de 4 campos</span>. Cada campo a mais derruba a conversão. Telefone e faturamento são obrigatórios — qualificam o lead antes da reunião.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- =========================================
+       CTA FINAL
+       ========================================== -->
+  <section class="cta-final" aria-labelledby="cta-final-title">
+    <div class="micro gold mb-2">// FIM.DO.DOCUMENTO · DOC.SITE.001</div>
+    <h2 id="cta-final-title">NÃO DECORAMOS. PROJETAMOS.</h2>
+    <p class="body sub muted">Toda página, todo card, todo botão é uma interface de conversão. Se um elemento não comunica estrutura, função ou dado — ele não pertence ao site.</p>
+    <a href="#agendar" class="btn btn-primary btn-lg mt-3">Agendar diagnóstico de estrutura <span class="arr" aria-hidden="true">→</span></a>
+  </section>
+
+</main>
+
+<!-- =========================================
+     FOOTER
+     ========================================== -->
+<footer class="footer" role="contentinfo">
+  <div class="footer-row">
+    <span>[FALCO_SYSTEM v2.0]</span>
+    <span>DOC.SITE.001</span>
+    <span>MAIO/2026</span>
+    <span>STATUS: OPERANDO</span>
+  </div>
+  <div><span class="gold">REVISÃO APÓS PRIMEIRAS 10 PEÇAS</span></div>
+</footer>
+
+<!-- WhatsApp flutuante -->
+<a href="#agendar" class="wa-float" aria-label="Agendar diagnóstico via WhatsApp">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+  </svg>
+</a>
+
+<script>
+  // SCROLL REVEAL — animação sutil de entrada
+  (function() {
+    if (!('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.reveal').forEach(function(el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    document.querySelectorAll('.reveal').forEach(function(el) { io.observe(el); });
+  })();
+
+  // FORMULÁRIO — validação + máscara de WhatsApp
+  (function() {
+    var form = document.getElementById('diagnostico-form');
+    if (!form) return;
+    var status = document.getElementById('form-status');
+    var phone = document.getElementById('whatsapp');
+
+    if (phone) {
+      phone.addEventListener('input', function(e) {
+        var v = e.target.value.replace(/\D/g, '').slice(0, 11);
+        if (v.length > 10) {
+          e.target.value = v.replace(/(\d{2})(\d{5})(\d{0,4}).*/, '($1) $2-$3').replace(/-$/, '');
+        } else if (v.length > 6) {
+          e.target.value = v.replace(/(\d{2})(\d{4})(\d{0,4}).*/, '($1) $2-$3').replace(/-$/, '');
+        } else if (v.length > 2) {
+          e.target.value = v.replace(/(\d{2})(\d{0,5}).*/, '($1) $2').replace(/\s$/, '');
+        } else {
+          e.target.value = v;
+        }
+      });
+    }
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var fields = form.querySelectorAll('[required]');
+      var ok = true;
+      fields.forEach(function(f) {
+        if (!f.value.trim()) {
+          ok = false;
+          f.style.borderColor = 'var(--status-critical)';
+          f.style.boxShadow = '0 0 0 1px var(--status-critical)';
+        } else {
+          f.style.borderColor = '';
+          f.style.boxShadow = '';
+        }
+      });
+      if (!ok) {
+        status.style.color = 'var(--status-critical)';
+        status.textContent = '// PREENCHA TODOS OS CAMPOS';
+        return;
+      }
+      status.style.color = 'var(--status-op)';
+      status.textContent = '// AGENDAMENTO RECEBIDO · RETORNAREMOS EM ATÉ 24H';
+      form.reset();
+    });
+  })();
+
+  // SMOOTH SCROLL — fallback para navegadores sem suporte CSS
+  document.querySelectorAll('a[href^="#"]').forEach(function(a) {
+    a.addEventListener('click', function(e) {
+      var id = a.getAttribute('href');
+      if (id.length < 2) return;
+      var target = document.querySelector(id);
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
+    });
+  });
+</script>
+
+</body>
+</html>
